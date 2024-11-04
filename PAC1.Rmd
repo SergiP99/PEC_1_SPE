@@ -1,0 +1,96 @@
+---
+title: "PAC1"
+author: "SERGI PÉREZ"
+date: "2024-11-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+system("git clone https://github.com/nutrimetabolomics/metaboData.git")
+
+list.files("metaboData/Datasets")
+
+full_data <- read.csv("metaboData/Datasets/2024-Cachexia/human_cachexia.csv", header = TRUE, stringsAsFactors = FALSE)
+
+# Extraer datos de metabolitos (todas las columnas numéricas)
+data <- t(full_data[, -(1:2)])
+colnames(data) <- full_data$Patient.ID  # Usar 'Patient.ID' como nombres de columna
+rownames(data) <- colnames(full_data)[-(1:2)]
+
+# Crear los metadatos a partir de la columna Muscle.loss
+sample_info <- data.frame(
+    Patient.ID = full_data$Patient.ID,
+    condition = ifelse(full_data$Muscle.loss == "cachexic", "Cachexia", "Control"),
+    description = "Urine samples from patients with cachexia and control patients (specmine.datasets package)",
+    row.names = full_data$Patient.ID
+)
+
+str(data)
+se <- SummarizedExperiment(
+    assays = list(counts = data),
+    colData = sample_info
+)
+
+se
+summary(se)
+
+metadata(se) <- list(
+    study_description = "Study on cachexia syndrome using 77 urine samples (47 cachexia, 30 control) from the specmine.datasets package.",
+    source = "Evans et al., 2008"
+)
+metadata(se)
+
+```
+
+
+
+
+EXPLORACIÓ INICIAL
+```{r}
+summary(se)
+
+dim(se) #dimensiones del dataset
+
+colnames(se) #nombres de las muestras
+rownames(se) #nombres de los metabolitos
+
+datos_analisis<-as.data.frame(assay(se))
+summary(datos_analisis)
+```
+
+
+```{r}
+library(ggplot2)
+
+metabolite_long <- reshape2::melt(datos_analisis[, 1:5])
+ggplot(metabolite_long, aes(value, color = variable)) +
+    geom_density() +
+    labs(title = "Distribución de los primeros 5 metabolitos")
+
+
+
+```
+Analisis POMA (PCA)
+```{r}
+library(POMA)
+library(ggtext)
+library(magrittr)
+library(PCAtools)
+
+str(se)
+table(colData(se)$condition)
+
+
+metabolite_data <- assays(se)$counts  # Obtener la matriz de datos
+
+# Realizar el PCA
+pca_results <- pca(metabolite_data, metadata = colData(se))
+
+# Ver los resultados del PCA
+print(pca_results)
+```
+
