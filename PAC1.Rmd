@@ -1,0 +1,246 @@
+---
+title: "PAC1"
+author: "SERGI PÉREZ"
+date: "2024-11-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if (!requireNamespace("SummarizedExperiment", quietly = TRUE)) {
+    install.packages("BiocManager")
+    BiocManager::install("SummarizedExperiment")
+}
+library(SummarizedExperiment)
+
+```
+
+```{r}
+system("git clone https://github.com/nutrimetabolomics/Metabotyping2018.git")
+
+list.files("Metabotyping2018/Datasets")
+
+datos <- read.csv("Metabotyping2018/Datasets/DataValues_S013.csv", header = TRUE, stringsAsFactors = FALSE)
+
+datos <- datos[, -1]
+
+matabolomic_data<-datos[,1:5]
+
+datos <- datos[, -c(1:5)]
+
+metadatos_muestras <- read.csv("Metabotyping2018/Datasets/DataInfo_S013.csv", header = TRUE, stringsAsFactors = FALSE)
+
+metadatos_muestras <- metadatos_muestras[-(1:5), ]
+
+
+
+se <- SummarizedExperiment(
+  assays = list(counts = as.matrix(datos)),   # Matriz de datos
+  colData = metadatos_muestras,
+  rowData = matabolomic_data
+  )
+
+metadata(se) <- list("descripcion" = "Análisis de metabolitos en cirugía bariátrica")
+
+
+se
+
+summary(se)
+
+head(assay(se))
+
+
+
+
+# Dividir la matriz de datos en 4 sub-matrices
+matriz_T0 <- assay(se)[, grepl("_T0$", colnames(assay(se)))]  # Filtra las columnas que terminan en _T0
+matriz_T2 <- assay(se)[, grepl("_T2$", colnames(assay(se)))]  # Filtra las columnas que terminan en _T2
+matriz_T4 <- assay(se)[, grepl("_T4$", colnames(assay(se)))]  # Filtra las columnas que terminan en _T4
+matriz_T5 <- assay(se)[, grepl("_T5$", colnames(assay(se)))]  # Filtra las columnas que terminan en _T5
+
+# Verificar que se han añadido correctamente las matrices
+assays(se)
+
+
+
+
+
+
+
+
+
+se
+
+
+
+
+```
+
+
+```{r}
+#SELECCIÓ DE COLUMNES
+# Cargar el archivo CSV con los datos
+data_values <- read.csv("DataValues_S013.csv")
+
+# Seleccionar las primeras 5 columnas y las columnas específicas de peso
+# Asegúrate de que los nombres de las columnas sean correctos en tu dataframe
+selected_columns <- data_values[, c(1:5, which(colnames(data_values) %in% c("PESO_T0", "PESO_T2", "PESO_T4", "PESO_T5")))]
+
+# Verificar el nuevo dataframe
+head(selected_columns)
+```
+
+
+EXPLORACIÓ INICIAL
+```{r}
+summary(se)
+
+dim(se) #dimensiones del dataset
+
+colnames(se) #nombres de las muestras
+rownames(se) #nombres de los metabolitos
+
+
+```
+
+
+```{r}
+# Obtener los datos de la matriz sin normalizar
+raw_data <- assay(se, "counts")
+
+
+# Filtrar las columnas correspondientes a los tiempos T0, T2, T4, T5
+t0_data <- raw_data[, grep("_T0", colnames(raw_data))]
+t2_data <- raw_data[, grep("_T2", colnames(raw_data))]
+t4_data <- raw_data[, grep("_T4", colnames(raw_data))]
+t5_data <- raw_data[, grep("_T5", colnames(raw_data))]
+
+t2_data <- t2_data[, !grepl("lysoPC.a.C14.0_T2", colnames(t2_data))]
+
+
+library(ggplot2)
+
+# Crear un data.frame con los datos de la densidad
+data_for_density <- data.frame(
+  value = c(as.vector(t0_data), as.vector(t2_data), as.vector(t4_data), as.vector(t5_data)),
+  time = rep(c("T0", "T2", "T4", "T5"), each = nrow(t0_data) * ncol(t0_data))
+)
+
+# Graficar la densidad de los metabolitos por tiempo sin normalización
+ggplot(data_for_density, aes(x = value, fill = time)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~time) +
+  theme_minimal() +
+  labs(title = "Distribución de metabolitos por tiempo (sin normalización)", 
+       x = "Valor de metabolito", y = "Densidad")
+```
+PESO
+
+```{r}
+
+raw_data1 <- as.data.frame(raw_data)
+
+peso_t0 <- raw_data1$PESO_T0
+peso_t2 <- raw_data1$PESO_T2
+peso_t4 <- raw_data1$PESO_T4
+peso_t5 <- raw_data1$PESO_T5
+
+peso_data <- data.frame(
+  Peso = c(peso_t0, peso_t2, peso_t4, peso_t5),
+  Tiempo = rep(c("T0", "T2", "T4", "T5"), each = nrow(raw_data))
+)
+
+ggplot(peso_data, aes(x = Tiempo, y = Peso, fill = Tiempo)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Distribución del peso por tiempo", x = "Tiempo", y = "Peso (kg)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+PCA
+
+```{r}
+t0_data1 <- raw_data[, grep("_T0", colnames(raw_data))]
+t2_data1 <- raw_data[, grep("_T2", colnames(raw_data))]
+t4_data1 <- raw_data[, grep("_T4", colnames(raw_data))]
+t5_data1 <- raw_data[, grep("_T5", colnames(raw_data))]
+
+t2_data1 <- t2_data[, !grepl("lysoPC.a.C14.0_T2", colnames(t2_data))]
+
+t0_data1[is.na(t0_data1)] <- 0
+t2_data1[is.na(t2_data1)] <- 0
+t4_data1[is.na(t4_data1)] <- 0
+t5_data1[is.na(t5_data1)] <- 0
+
+
+
+
+t0_norm <- PomaNorm(t0_data1)
+t2_norm <- PomaNorm(t2_data1)
+t4_norm <- PomaNorm(t4_data1)
+t5_norm <- PomaNorm(t5_data1)
+# Subtraer las diferencias de metabolitos entre los tiempos para comparar T6-T0, T3-T0, y T1-T0
+delta_t5_t0 <- t5_data1 - t0_data
+delta_t4_t0 <- t4_data1 - t0_data
+delta_t2_t0 <- t2_data1 - t0_data
+
+delta_t5_t0[is.na(delta_t5_t0)] <- 0
+delta_t4_t0[is.na(delta_t4_t0)] <- 0
+delta_t2_t0[is.na(delta_t2_t0)] <- 0
+
+variances_by_row <- apply(delta_t2_t0, 1, var)
+
+# Filtrar las filas con varianza mayor a cero
+delta_t2_t0_filtered_by_row <- delta_t2_t0[variances_by_row > 0, ]
+
+# Ahora puedes hacer el PCA con la matriz filtrada
+pca_t2_t0 <- prcomp(delta_t2_t0_filtered_by_row, scale. = TRUE)
+
+pca_t5_t0 <- prcomp(delta_t5_t0, scale. = TRUE)
+pca_t4_t0 <- prcomp(delta_t4_t0, scale. = TRUE)
+pca_t2_t0 <- prcomp(delta_t2_t0, scale. = TRUE)
+
+
+```
+POMA
+
+```{r}
+t0_data2 <- assay(se)[, grep("_T0", colnames(assay(se)))]
+t2_data2 <- assay(se)[, grep("_T2", colnames(assay(se)))]
+t4_data2 <- assay(se)[, grep("_T4", colnames(assay(se)))]
+t5_data2 <- assay(se)[, grep("_T5", colnames(assay(se)))]
+
+t0_norm <- PomaNorm(t0_data)
+t2_norm <- PomaNorm(t2_data)
+t4_norm <- PomaNorm(t4_data)
+t5_norm <- PomaNorm(t5_data)
+```
+
+
+```{r}
+
+library(git2r)
+
+# Establecer la URL del repositorio
+repo_url <- "https://github.com/tu_usuario/PEC_1_SPE.git"  # Reemplaza "tu_usuario" por tu nombre de usuario
+
+# Clonar el repositorio
+repo <- clone(repo_url, "PEC_1_SPE")
+
+# Agregar tu script al repositorio clonado
+file.copy("ruta/al/tu_script.R", "PEC_1_SPE/")  # Cambia la ruta a donde está tu script
+
+# Ir al directorio del repositorio clonado
+setwd("PEC_1_SPE")
+
+# Agregar cambios
+add(repo, "*")  # Agrega todos los archivos nuevos y modificados
+
+# Confirmar los cambios
+commit(repo, "Agregar script de R")
+
+# Subir los cambios al repositorio de GitHub
+push(repo)
+```
+
