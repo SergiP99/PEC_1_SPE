@@ -3,14 +3,13 @@ title: "PAC1 ANÁLISIS DE DATOS ÓMICOS"
 author: "SERGI PÉREZ"
 date: "2024-11-06"
 output:
+  
   html_document:
     toc: true
     toc_depth: 3
-  
   pdf_document:
     toc: true
     toc_depth: 3
-
 ---
 
 ```{r setup, include=FALSE, tidy = TRUE}
@@ -214,10 +213,14 @@ ggplot(peso_data, aes(x = Tiempo, y = Peso, fill = Tiempo)) +
 Como era de esperar los pesos disminuyen a medida que el tiempo post-cirugía va pasando. Las diferencias parecen bastante significativas ya que si comparamos las medias partimos de una media cercana a 150 en T0 que consigue disminuir a T5, a casi 100.
 
 
-### 4.DISCUSIÓN
+### 4. DISCUSIÓN
 
 
-### APENDICE
+Dado que la obtención del contenedor “se” ha supuesto una dificultad para la correcta obtención de datos, no he podido realizar una exploración de los mismos como me hubiese gustado. Aun así he podido navegar por mis datos y hacer breves estudios extrayendo datos del contenedor creado. También añadir información extra de los mismos (metadatos) y graficar algunos ejemplos de cómo se encuentran los datos y su variación en las distintas mediciones en el tiempo.  
+Considero que el repositorio y en concreto el dataframe elegido tiene mucho más potencial para explorar y que es interesante su revisión a futuro.
+
+
+### 5. APENDICE
 
 #### REPOSITORIO GITHUB
 
