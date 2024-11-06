@@ -1,13 +1,41 @@
 ---
-title: "PAC1"
+title: "PAC1 ANÁLISIS DE DATOS ÓMICOS"
 author: "SERGI PÉREZ"
-date: "2024-11-02"
-output: html_document
+date: "2024-11-06"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+  
+  pdf_document:
+    toc: true
+    toc_depth: 3
+
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, tidy = TRUE}
 knitr::opts_chunk$set(echo = TRUE)
 
+```
+
+### 1.INTRODUCCIÓN
+
+En las últimas décadas, la cirugía bariátrica se ha establecido como una intervención eficaz no solo para la pérdida de peso, sino también para el control metabólico y la prevención de la diabetes tipo 2. Las múltiples enfermedades metabólicas asociadas con la obesidad, como la diabetes, a menudo mejoran tras la cirugía, incluso antes de que se produzca una pérdida de peso significativa, aunque las razones detrás de esta mejora aún no están claras.
+
+En la literatura se conocen pocos estudios sobre las consecuencias metabólicas postoperatorias y su relación con la variabilidad en la mejora metabólica. En este estudio, está claro que la ómica que nos ocupa es la metabolómica, la cual es altamente valorada dado a que ayuda en la investigación biomédica a entender mejor las enfermedades metabólicas,  y en este caso concreto las relacionadas con la obesidad.  En este caso los datos nos ayudan a evaluar el impacto de las intervenciones para la pérdida de peso.
+
+En el estudio se pretende: 
+
+1)	Identificar firmas metabólicas asociadas a la condición basal de los pacientes (metabólicamente no saludables vs saludables)
+
+2)	Caracterizar metabotipos de respuesta a la cirugía bariátrica basados en la evolución metabólica.
+
+3)	Correlacionar estos cambios con mejoras metabólicas evaluadas a través de parámetros antropométricos y clínicos. 
+
+En el estudio, la condición basal de los pacientes se disipa después de la cirugía. Se han definido dos metabotipos de repuesta independientemente del género, edad o cantidad de pérdida de peso, pero si dependientes de otros factores como resistencia a insulina, colesterol y niveles de ácido úrico. 
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 if (!requireNamespace("SummarizedExperiment", quietly = TRUE)) {
     install.packages("BiocManager")
     BiocManager::install("SummarizedExperiment")
@@ -15,6 +43,188 @@ if (!requireNamespace("SummarizedExperiment", quietly = TRUE)) {
 library(SummarizedExperiment)
 
 ```
+
+### 2. MATERIALES Y MÉTODOS
+
+#### 2.1- Obtención de datos
+
+
+Los datos brutos de obtienen del repositorio metaboData, repositorio público que incluye varios datasets de diferentes estudios relacionados con la metabolómica, los cuales vienen resumidos en el archivo "Data_Catalog.xlsx". 
+
+#### 2.2- Preparación de los datos
+
+
+Para la preparación de datos para el estudio, se ha generado un contenedor del tipo “Summaritzed Experiment”, donde se pretende recoger los datos contenidos en el archivo csv “Data_Values_S013”, que contiene toda la información clínica i metabolómica de 39 pacientes en 5 puntos temporales (T0, T2, T4 Y T5). 
+
+Para usar estos datos, de clona el repositorio a nivel local usando el comando system("git clone https://github.com/nutrimetabolomics/Metabotyping2018.git")
+. A continuación obtengo el listado de ficheros usando el comando “list.files”. Con ello ya cargo mis datos en mi Rmd, y los guardo en "datos". 
+
+“datos” va a ser la matriz de datos que usaré para generar el contedor Summarized Experiment, antes de crear la matriz modifico los datos quitando en primer lugar la primera columna ya que es repetida y no aporta valor. A continuación, asignamos las 5 primeras columnas de “datos”, a “metabolomic_data”, que contendrá la información de las filas de nuestro Summaritzed Experiment. Estas 5 columnas, las quitamos de “datos”.
+
+Por otro lado, añadimos la información relativa a las columnas de nuestro dataframe “datos”, usando el mismo comando anterior cargando el csv “DataInfo_S013.csv”. A estos valores que nombro “metadatos_muestras” le quito las primeras 5 columnas para que la dimensión de “datos” y “metadatos_muestras” sea compatible. 
+
+Una vez tenemos los datos preparados podemos generar el contenedor Summarized Experiment que nombraremos “se”. Creamos la matriz de datos y definimos todas las partes necesarias para componer el contenedor. En el tendremos la matriz con todos los datos, así como la información relativa a las filas (cada una de las 39 muestras del estudio) y las columnas (con información relativa a las características de cada una de estas muestras). Por último se añaden metadatos, que son información complementaria a los datos como información relativa al estudio del cual provienen los datos (citación del mismo, doi, etc.). En el repositorio de github además se añade información relativa a todos los metabolitos que se monitorizan en el estudio, se añade en el csv “AAInformation_S013”.
+
+El objetivo en esta práctica es el poder comparar la variación de los valores de los distintos metabolitos y condiciones de estudio en los 39 pacientes que participan en el estudio. Dividiendo los datos en función del tiempo en el que se midieron podemos observar la tendencia de los mismos y corroborar los efectos que tiene la cirugía bariátrica en estos pacientes. 
+
+#### 2.3- Separación de matriz principal
+
+
+Para organizar lo datos según su “T”, se divide la matriz “datos” usando el comando “grepl”, en el cual separamos la matriz según tengan T0, T2, T4 O T5. Con estas matrices podremos generar gráficos de densidades de los metabolitos en cada unidad de tiempo. 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+system("git clone https://github.com/nutrimetabolomics/Metabotyping2018.git")
+
+list.files("Metabotyping2018/Datasets")
+
+datos <- read.csv("Metabotyping2018/Datasets/DataValues_S013.csv", header = TRUE, stringsAsFactors = FALSE)
+
+datos <- datos[, -1]
+
+matabolomic_data<-datos[,1:5]
+
+datos <- datos[, -c(1:5)]
+
+metadatos_muestras <- read.csv("Metabotyping2018/Datasets/DataInfo_S013.csv", header = TRUE, stringsAsFactors = FALSE)
+
+metadatos_muestras <- metadatos_muestras[-(1:5), ]
+
+
+
+se <- SummarizedExperiment(
+  assays = list(counts = as.matrix(datos)),   # Matriz de datos
+  colData = metadatos_muestras,
+  rowData = matabolomic_data
+  )
+
+
+metadata(se)$DOI <- "https://doi.org/10.1371/journal.pone.0198214"
+metadata(se)$Citation <- "Palau-Rodriguez, M., Tulipani, S., Marco-Ramell, A., Miñarro, A., Jáuregui, O., Sanchez-Pla, A., Ramos-Molina, B., Tinahones, F. J., & Andres-Lacueva, C. (2018). Metabotypes of response to bariatric surgery independent of the magnitude of weight loss. PloS one, 13(6), e0198214. https://doi.org/10.1371/journal.pone.0198214"
+
+
+
+se
+
+summary(se)
+
+
+
+
+
+
+# Dividir la matriz de datos en 4 sub-matrices
+matriz_T0 <- assay(se)[, grepl("_T0$", colnames(assay(se)))]  # Filtra las columnas que terminan en _T0
+matriz_T2 <- assay(se)[, grepl("_T2$", colnames(assay(se)))]  # Filtra las columnas que terminan en _T2
+matriz_T4 <- assay(se)[, grepl("_T4$", colnames(assay(se)))]  # Filtra las columnas que terminan en _T4
+matriz_T5 <- assay(se)[, grepl("_T5$", colnames(assay(se)))]  # Filtra las columnas que terminan en _T5
+
+
+
+
+
+```
+
+
+#### 2.4-Exploración inicial del "se"
+
+Nos permiten tener un vistazo rápido del contenido de nuestro Summarized Experiment, sus metadatos y dimensiones:
+
+```{r}
+se
+
+summary(se)
+
+dim(se) #dimensiones del dataset
+
+head(colnames(se)) #nombres de los primeros metabolitos/características
+
+
+```
+### 3. RESULTADOS
+
+
+#### GRÁFICO DENSIDAD
+
+En primer lugar agrupamos los datos de la matriz de datos inicial. Con estos datos, necesitamos filtrar por columnas según la unidad de tiempo en la que se tomaron los datos de esto metabolitos o características del estudio. Cuando disponemos de las columnas aisladas, podemos usar la librería “ggplot2” para graficar nuestros datos. Para ello generamos un dataframe con nuestros “datos filtrados” y a continuación generamos los 4 gráficos que se corresponden a los 4 tiempos donde se han medido estos metabolitos.
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+
+raw_data <- assay(se, "counts")
+
+
+# filtrar las columnas correspondientes a los tiempos T0, T2, T4, T5
+t0_data <- raw_data[, grep("_T0", colnames(raw_data))]
+t2_data <- raw_data[, grep("_T2", colnames(raw_data))]
+t4_data <- raw_data[, grep("_T4", colnames(raw_data))]
+t5_data <- raw_data[, grep("_T5", colnames(raw_data))]
+
+t2_data <- t2_data[, !grepl("lysoPC.a.C14.0_T2", colnames(t2_data))]
+
+
+library(ggplot2)
+
+data_for_density <- data.frame(
+  value = c(as.vector(t0_data), as.vector(t2_data), as.vector(t4_data), as.vector(t5_data)),
+  time = rep(c("T0", "T2", "T4", "T5"), each = nrow(t0_data) * ncol(t0_data))
+)
+
+
+ggplot(data_for_density, aes(x = value, fill = time)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~time) +
+  theme_minimal() +
+  labs(title = "Distribución de metabolitos por tiempo ", 
+       x = "Valor de metabolito", y = "Densidad")
+```
+
+
+Los gráficos no muestran muchísima variabilidad en los valores de loa metabolitos, se aprecia un mayor crecimiento en el valor de estos en el tiempo 5 (T5) en comparación el resto pero no supone una diferencia muy evidente. Este gráfico nos aporta poco valor en la interpretación y objetivos de este estudio.
+
+#### GRÁFICO PESO
+
+
+Para graficar estos datos, en este caso extraemos de nuestra matriz de datos 4 columnas para conocer la variación del peso en los pacientes en los 4 tiempos que se miden en el estudio. Como en el ejercicio anterior, creamos un dataframe con nuestros datos seleccionados anteriormente y en este caso dibujamos un boxplot con nuestros datos:
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+
+raw_data1 <- as.data.frame(raw_data)
+
+peso_t0 <- raw_data1$PESO_T0
+peso_t2 <- raw_data1$PESO_T2
+peso_t4 <- raw_data1$PESO_T4
+peso_t5 <- raw_data1$PESO_T5
+
+peso_data <- data.frame(
+  Peso = c(peso_t0, peso_t2, peso_t4, peso_t5),
+  Tiempo = rep(c("T0", "T2", "T4", "T5"), each = nrow(raw_data))
+)
+
+ggplot(peso_data, aes(x = Tiempo, y = Peso, fill = Tiempo)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Variación del peso", x = "Tiempo", y = "Peso") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+Como era de esperar los pesos disminuyen a medida que el tiempo post-cirugía va pasando. Las diferencias parecen bastante significativas ya que si comparamos las medias partimos de una media cercana a 150 en T0 que consigue disminuir a T5, a casi 100.
+
+
+### 4.DISCUSIÓN
+
+
+### APENDICE
+
+#### REPOSITORIO GITHUB
+
+https://github.com/SergiP99/Perez-Justribo-Sergi-PEC1.git
+
+#### OBTENCIÓN DE DATOS
+
 
 ```{r}
 system("git clone https://github.com/nutrimetabolomics/Metabotyping2018.git")
@@ -41,14 +251,17 @@ se <- SummarizedExperiment(
   rowData = matabolomic_data
   )
 
-metadata(se) <- list("descripcion" = "Análisis de metabolitos en cirugía bariátrica")
+
+metadata(se)$DOI <- "https://doi.org/10.1371/journal.pone.0198214"
+metadata(se)$Citation <- "Palau-Rodriguez, M., Tulipani, S., Marco-Ramell, A., Miñarro, A., Jáuregui, O., Sanchez-Pla, A., Ramos-Molina, B., Tinahones, F. J., & Andres-Lacueva, C. (2018). Metabotypes of response to bariatric surgery independent of the magnitude of weight loss. PloS one, 13(6), e0198214. https://doi.org/10.1371/journal.pone.0198214"
+
 
 
 se
 
 summary(se)
 
-head(assay(se))
+
 
 
 
@@ -59,18 +272,6 @@ matriz_T2 <- assay(se)[, grepl("_T2$", colnames(assay(se)))]  # Filtra las colum
 matriz_T4 <- assay(se)[, grepl("_T4$", colnames(assay(se)))]  # Filtra las columnas que terminan en _T4
 matriz_T5 <- assay(se)[, grepl("_T5$", colnames(assay(se)))]  # Filtra las columnas que terminan en _T5
 
-# Verificar que se han añadido correctamente las matrices
-assays(se)
-
-
-
-
-
-
-
-
-
-se
 
 
 
@@ -78,39 +279,13 @@ se
 ```
 
 
-```{r}
-#SELECCIÓ DE COLUMNES
-# Cargar el archivo CSV con los datos
-data_values <- read.csv("DataValues_S013.csv")
-
-# Seleccionar las primeras 5 columnas y las columnas específicas de peso
-# Asegúrate de que los nombres de las columnas sean correctos en tu dataframe
-selected_columns <- data_values[, c(1:5, which(colnames(data_values) %in% c("PESO_T0", "PESO_T2", "PESO_T4", "PESO_T5")))]
-
-# Verificar el nuevo dataframe
-head(selected_columns)
-```
-
-
-EXPLORACIÓ INICIAL
-```{r}
-summary(se)
-
-dim(se) #dimensiones del dataset
-
-colnames(se) #nombres de las muestras
-rownames(se) #nombres de los metabolitos
-
-
-```
-
+#### CREACIÓN GRÁFICOS
 
 ```{r}
-# Obtener los datos de la matriz sin normalizar
 raw_data <- assay(se, "counts")
 
 
-# Filtrar las columnas correspondientes a los tiempos T0, T2, T4, T5
+# filtrar las columnas correspondientes a los tiempos T0, T2, T4, T5
 t0_data <- raw_data[, grep("_T0", colnames(raw_data))]
 t2_data <- raw_data[, grep("_T2", colnames(raw_data))]
 t4_data <- raw_data[, grep("_T4", colnames(raw_data))]
@@ -121,21 +296,19 @@ t2_data <- t2_data[, !grepl("lysoPC.a.C14.0_T2", colnames(t2_data))]
 
 library(ggplot2)
 
-# Crear un data.frame con los datos de la densidad
 data_for_density <- data.frame(
   value = c(as.vector(t0_data), as.vector(t2_data), as.vector(t4_data), as.vector(t5_data)),
   time = rep(c("T0", "T2", "T4", "T5"), each = nrow(t0_data) * ncol(t0_data))
 )
 
-# Graficar la densidad de los metabolitos por tiempo sin normalización
+
 ggplot(data_for_density, aes(x = value, fill = time)) +
   geom_density(alpha = 0.5) +
   facet_wrap(~time) +
   theme_minimal() +
-  labs(title = "Distribución de metabolitos por tiempo (sin normalización)", 
+  labs(title = "Distribución de metabolitos por tiempo ", 
        x = "Valor de metabolito", y = "Densidad")
 ```
-PESO
 
 ```{r}
 
@@ -154,93 +327,7 @@ peso_data <- data.frame(
 ggplot(peso_data, aes(x = Tiempo, y = Peso, fill = Tiempo)) +
   geom_boxplot() +
   theme_minimal() +
-  labs(title = "Distribución del peso por tiempo", x = "Tiempo", y = "Peso (kg)") +
+  labs(title = "Variación del peso", x = "Tiempo", y = "Peso") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-```
-
-PCA
-
-```{r}
-t0_data1 <- raw_data[, grep("_T0", colnames(raw_data))]
-t2_data1 <- raw_data[, grep("_T2", colnames(raw_data))]
-t4_data1 <- raw_data[, grep("_T4", colnames(raw_data))]
-t5_data1 <- raw_data[, grep("_T5", colnames(raw_data))]
-
-t2_data1 <- t2_data[, !grepl("lysoPC.a.C14.0_T2", colnames(t2_data))]
-
-t0_data1[is.na(t0_data1)] <- 0
-t2_data1[is.na(t2_data1)] <- 0
-t4_data1[is.na(t4_data1)] <- 0
-t5_data1[is.na(t5_data1)] <- 0
-
-
-
-
-t0_norm <- PomaNorm(t0_data1)
-t2_norm <- PomaNorm(t2_data1)
-t4_norm <- PomaNorm(t4_data1)
-t5_norm <- PomaNorm(t5_data1)
-# Subtraer las diferencias de metabolitos entre los tiempos para comparar T6-T0, T3-T0, y T1-T0
-delta_t5_t0 <- t5_data1 - t0_data
-delta_t4_t0 <- t4_data1 - t0_data
-delta_t2_t0 <- t2_data1 - t0_data
-
-delta_t5_t0[is.na(delta_t5_t0)] <- 0
-delta_t4_t0[is.na(delta_t4_t0)] <- 0
-delta_t2_t0[is.na(delta_t2_t0)] <- 0
-
-variances_by_row <- apply(delta_t2_t0, 1, var)
-
-# Filtrar las filas con varianza mayor a cero
-delta_t2_t0_filtered_by_row <- delta_t2_t0[variances_by_row > 0, ]
-
-# Ahora puedes hacer el PCA con la matriz filtrada
-pca_t2_t0 <- prcomp(delta_t2_t0_filtered_by_row, scale. = TRUE)
-
-pca_t5_t0 <- prcomp(delta_t5_t0, scale. = TRUE)
-pca_t4_t0 <- prcomp(delta_t4_t0, scale. = TRUE)
-pca_t2_t0 <- prcomp(delta_t2_t0, scale. = TRUE)
-
-
-```
-POMA
-
-```{r}
-t0_data2 <- assay(se)[, grep("_T0", colnames(assay(se)))]
-t2_data2 <- assay(se)[, grep("_T2", colnames(assay(se)))]
-t4_data2 <- assay(se)[, grep("_T4", colnames(assay(se)))]
-t5_data2 <- assay(se)[, grep("_T5", colnames(assay(se)))]
-
-t0_norm <- PomaNorm(t0_data)
-t2_norm <- PomaNorm(t2_data)
-t4_norm <- PomaNorm(t4_data)
-t5_norm <- PomaNorm(t5_data)
-```
-
-
-```{r}
-
-library(git2r)
-
-# Establecer la URL del repositorio
-repo_url <- "https://github.com/tu_usuario/PEC_1_SPE.git"  # Reemplaza "tu_usuario" por tu nombre de usuario
-
-# Clonar el repositorio
-repo <- clone(repo_url, "PEC_1_SPE")
-
-# Agregar tu script al repositorio clonado
-file.copy("ruta/al/tu_script.R", "PEC_1_SPE/")  # Cambia la ruta a donde está tu script
-
-# Ir al directorio del repositorio clonado
-setwd("PEC_1_SPE")
-
-# Agregar cambios
-add(repo, "*")  # Agrega todos los archivos nuevos y modificados
-
-# Confirmar los cambios
-commit(repo, "Agregar script de R")
-
-# Subir los cambios al repositorio de GitHub
-push(repo)
 ```
 
